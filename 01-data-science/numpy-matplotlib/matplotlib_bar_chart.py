@@ -16,8 +16,3 @@ plt.title("Student Marks")
 plt.show()
 
 
-plt.plot(x,y)
-plt.bar(x,y)
-plt.scatter(x,y)
-plt.hist(data)
-plt.pie(data)

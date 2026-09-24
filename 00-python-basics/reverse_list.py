@@ -4,7 +4,6 @@ def rev_list(arr):
         arr[left], arr[right] = arr[right], arr[left]
         left += 1
         right -= 1
-    arr[-1::]
     return arr
 
 
