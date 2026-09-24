@@ -1,6 +1,31 @@
-yolov8n.pt
+# ── Python ──────────────────────────────────────────────────────────────────
 __pycache__/
-*.pkl
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# ── Virtual environments ─────────────────────────────────────────────────────
 venv/
+.venv/
+env/
+
+# ── Model weights (large binaries — auto-downloaded on first run) ────────────
+yolov8n.pt
+*.pt
+*.pkl
+hazard_mobilenet.pt
+runs/
+
+# ── RPS gesture dataset (collected locally, not for repo) ────────────────────
+04-rps-game/dataset/
+
+# ── macOS ────────────────────────────────────────────────────────────────────
 .DS_Store
-dataset/
+**/.DS_Store
+
+# ── Jupyter checkpoints ──────────────────────────────────────────────────────
+.ipynb_checkpoints/
+
+# ── Misc ─────────────────────────────────────────────────────────────────────
+temp.txt
