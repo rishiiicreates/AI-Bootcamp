@@ -47,6 +47,12 @@ AI-Bootcamp/
 │   ├── train_model.py                  # Train ML classifier on gesture dataset (Random Forest)
 │   └── play_rock_paper_scissors.py     # Play RPS in real-time against CPU using webcam
 │
+├── 05-nlp/
+│   ├── nlp.py                          # Real-time sentiment analyzer using TextBlob
+│   ├── resumescan.py                   # Resume entity extraction with spaCy NER
+│   ├── transformers.py                 # Attention mechanism visualization demo
+│   └── wordcld.py                      # Personal word cloud generator with NLTK
+│
 ├── notebooks/
 │   ├── numpy_pandas_sklearn_basics.ipynb  # NumPy, Pandas, scikit-learn intro notebook
 │   └── numpy_pandas_intro.ipynb           # Basic numpy/pandas DataFrame notebook
@@ -102,7 +108,13 @@ AI BOOTCAMP
 │   ├── LLM
 │   └── Transformers
 │
-└── 07. Ethics in AI
+├── 07. Applied NLP Practicals
+│   ├── Sentiment Analysis with TextBlob
+│   ├── Named Entity Recognition with spaCy
+│   ├── Attention Mechanism Visualization
+│   └── Word Cloud Generation with NLTK
+│
+└── 08. Ethics in AI
     ├── Ethical AI
     ├── Explainable AI
     └── Responsible AI
@@ -115,7 +127,9 @@ AI BOOTCAMP
 ```bash
 python -m venv venv
 source venv/bin/activate   # Windows: venv\Scripts\activate
-pip install numpy pandas matplotlib scipy scikit-learn opencv-python mediapipe ultralytics
+pip install numpy pandas matplotlib scipy scikit-learn opencv-python mediapipe ultralytics textblob spacy wordcloud nltk
+python -m spacy download en_core_web_sm
+python -c "import nltk; nltk.download('punkt'); nltk.download('stopwords')"
 ```
 
 > **Note:** `yolov8n.pt` is excluded from the repo (large binary). It will be auto-downloaded by `ultralytics` on first run.
