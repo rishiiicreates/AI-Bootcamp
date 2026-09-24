@@ -2,8 +2,9 @@ import os
 import cv2
 import matplotlib.pyplot as plt
 
-# Update the path below to match your image file name
-img_path = "../../assets/cat.jpeg"
+# Resolve path reliably regardless of current working directory
+script_dir = os.path.dirname(os.path.abspath(__file__))
+img_path = os.path.normpath(os.path.join(script_dir, "..", "..", "assets", "cat.jpeg"))
 
 if not os.path.exists(img_path):
     print(f"File not found at: {img_path}")
@@ -17,7 +18,7 @@ else:
         print("Image loaded successfully!")
         print("Shape (Height, Width, Channels):", img.shape)
 
-        # Convert BGR → RGB so matplotlib displays correct colours
+        # Convert BGR -> RGB so matplotlib displays correct colours
         img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
         # Display original
@@ -33,7 +34,7 @@ else:
 
         plt.subplot(1, 2, 2)
         plt.imshow(img_resized_rgb)
-        plt.title("Resized (400×256)")
+        plt.title("Resized (400x256)")
         plt.axis("off")
 
         plt.tight_layout()

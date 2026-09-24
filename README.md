@@ -44,7 +44,8 @@ AI-Bootcamp/
 │
 ├── 04-rps-game/
 │   ├── collect_hand_gesture_data.py    # Collect MediaPipe hand landmark data for RPS training
-│   └── play_rock_paper_scissors.py     # Play RPS using trained gesture classifier
+│   ├── train_model.py                  # Train ML classifier on gesture dataset (Random Forest)
+│   └── play_rock_paper_scissors.py     # Play RPS in real-time against CPU using webcam
 │
 ├── notebooks/
 │   ├── numpy_pandas_sklearn_basics.ipynb  # NumPy, Pandas, scikit-learn intro notebook
