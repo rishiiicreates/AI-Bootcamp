@@ -27,7 +27,7 @@ import torch.nn as nn
 from PIL import Image
 from torchvision import models, transforms
 
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+DEVICE = "mps" if torch.backends.mps.is_available() else ("cuda" if torch.cuda.is_available() else "cpu")
 HAZARD_WEIGHTS = os.path.join(os.path.dirname(__file__), "hazard_mobilenet.pt")
 TEST_DIR = os.path.join(os.path.dirname(__file__), "data", "hazard", "test")
 

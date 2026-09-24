@@ -28,7 +28,7 @@ HAZARD_DIR = "data/hazard"
 HAZARD_WEIGHTS = "hazard_mobilenet.pt"
 PEOPLE_YAML = "data/people/people.yaml"
 PEOPLE_WEIGHTS = "runs/detect/people/weights/best.pt"
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+DEVICE = "mps" if torch.backends.mps.is_available() else ("cuda" if torch.cuda.is_available() else "cpu")
 
 TF = transforms.Compose([
     transforms.Resize((224, 224)),
@@ -90,6 +90,10 @@ def train_people(epochs=30):
 
 def detect_people(path):
     from ultralytics import YOLO
+    import os
+    if not os.path.exists(PEOPLE_WEIGHTS):
+        # Fallback to base YOLOv8n if fine-tuned weights don't exist
+        return YOLO("yolov8n.pt")(path, imgsz=960, conf=0.25, verbose=False, classes=[0])[0].boxes.xyxy.cpu().tolist()
     r = YOLO(PEOPLE_WEIGHTS)(path, imgsz=960, conf=0.25, verbose=False)[0]
     return r.boxes.xyxy.cpu().tolist()  # [[x1,y1,x2,y2], ...]
 
@@ -140,7 +144,11 @@ def assess(hazard, conf, boxes, size):
 def scan(path):
     img = Image.open(path).convert("RGB")
     hazard, conf = predict_hazard(img)
-    boxes = detect_people(path)
+    try:
+        boxes = detect_people(path)
+    except Exception as e:
+        print(f"Warning: People detection unavailable ({e}), continuing with hazard-only mode")
+        boxes = []
     report = assess(hazard, conf, boxes, img.size)
     for k, v in report.items():
         print(f"{k:15}: {v}")
