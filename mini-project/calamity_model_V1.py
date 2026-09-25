@@ -1,7 +1,5 @@
-
-
 """
-calamity_model.py - train and run a small disaster-scan system.
+calamity_model_V1.py - train and run a small disaster-scan system.
 
   1) Hazard classifier  (CLIP zero-shot, no training needed) -> predicts from image directly
   2) People detector    (YOLOv8n fine-tune)                  -> VisDrone / HERIDAL in YOLO format
@@ -16,8 +14,8 @@ Data layout:
     NOTE: No hazard training data needed - CLIP classifies images directly.
 
 Commands:
-    python calamity_model.py train-people
-    python calamity_model.py scan photo.jpg
+    python calamity_model_V1.py train-people
+    python calamity_model_V1.py scan photo.jpg
 """
 import sys
 
@@ -29,16 +27,15 @@ PEOPLE_YAML = "data/people/people.yaml"
 PEOPLE_WEIGHTS = "runs/detect/people/weights/best.pt"
 DEVICE = "mps" if torch.backends.mps.is_available() else ("cuda" if torch.cuda.is_available() else "cpu")
 
-# NOTE: CLIP handles its own image preprocessing internally via its preprocess
-# transform, so no manual TF_TRAIN / TF_EVAL transforms are needed here.
+# NOTE: CLIP handles its own image preprocessing internally.
 
 
-# Cache for the loaded CLIP model so repeated scan() calls don't
-# re-download and reload the model from disk every time.
-_HAZARD_MODEL_CACHE = None
+# ---------- 1) hazard classifier (CLIP zero-shot) ----------
 
-# Text labels used for CLIP zero-shot classification.
-# More descriptive phrases give CLIP better context than single words.
+# Cache so we don't reload the model on every scan() call.
+_CLIP_CACHE = None
+
+# Descriptive text labels — more specific = better CLIP accuracy.
 HAZARD_LABELS = [
     "flooded streets with brown water and submerged buildings",
     "collapsed buildings and rubble after an earthquake",
@@ -46,7 +43,6 @@ HAZARD_LABELS = [
     "normal outdoor scene with no disaster",
 ]
 
-# Maps CLIP label back to the key used in PLAYBOOK.
 LABEL_MAP = {
     HAZARD_LABELS[0]: "flood",
     HAZARD_LABELS[1]: "earthquake",
@@ -55,31 +51,23 @@ LABEL_MAP = {
 }
 
 
-# ---------- 1) hazard classifier (CLIP zero-shot) ----------
-def _load_hazard_model():
-    """Load (and cache) the CLIP model so we don't re-download on every scan."""
-    global _HAZARD_MODEL_CACHE
-    if _HAZARD_MODEL_CACHE is None:
-        model, preprocess = clip.load("ViT-B/32", device=DEVICE)
-        _HAZARD_MODEL_CACHE = (model, preprocess)
-    return _HAZARD_MODEL_CACHE
-
-
 def predict_hazard(img):
-    """Classify the disaster type directly from the image using CLIP (no training needed)."""
-    model, preprocess = _load_hazard_model()
+    """Classify disaster type directly from image using CLIP (no training needed)."""
+    global _CLIP_CACHE
+    if _CLIP_CACHE is None:
+        _CLIP_CACHE = clip.load("ViT-B/32", device=DEVICE)
+    model, preprocess = _CLIP_CACHE
     img_tensor = preprocess(img).unsqueeze(0).to(DEVICE)
     tokens = clip.tokenize(HAZARD_LABELS).to(DEVICE)
     with torch.no_grad():
         logits, _ = model(img_tensor, tokens)
         probs = logits.softmax(dim=-1)[0]
     i = int(probs.argmax())
-    label = LABEL_MAP[HAZARD_LABELS[i]]
-    return label, float(probs[i])
+    return LABEL_MAP[HAZARD_LABELS[i]], float(probs[i])
 
 
 
-# ---------- 2) people detector ----------
+#2) people detector
 def train_people(epochs=30):
     from ultralytics import YOLO
     YOLO("yolov8n.pt").train(data=PEOPLE_YAML, epochs=epochs, imgsz=960, batch=8, name="people")
@@ -88,22 +76,16 @@ def train_people(epochs=30):
 def detect_people(path):
     from ultralytics import YOLO
     import os
-    # Always restrict to class 0 (person), whether we're using the
-    # fine-tuned weights or falling back to the generic pretrained model,
-    # so both paths return the same kind of detections.
     if not os.path.exists(PEOPLE_WEIGHTS):
-        # Fallback to base YOLOv8n if fine-tuned weights don't exist
-        r = YOLO("yolov8n.pt")(path, imgsz=960, conf=0.25, verbose=False, classes=[0])[0]
-    else:
-        r = YOLO(PEOPLE_WEIGHTS)(path, imgsz=960, conf=0.25, verbose=False, classes=[0])[0]
+        # YOLO fallback
+        return YOLO("yolov8n.pt")(path, imgsz=960, conf=0.25, verbose=False, classes=[0])[0].boxes.xyxy.cpu().tolist()
+    r = YOLO(PEOPLE_WEIGHTS)(path, imgsz=960, conf=0.25, verbose=False)[0]
     return r.boxes.xyxy.cpu().tolist()  # [[x1,y1,x2,y2], ...]
 
 
-# ---------- 3) rule engine ----------
+#3) rule engine
 def region_of(boxes, w, h):
     """Where the people cluster, as a 3x3 grid cell name."""
-    if not boxes:
-        return "unknown region"
     cx = sum((b[0] + b[2]) / 2 for b in boxes) / len(boxes)
     cy = sum((b[1] + b[3]) / 2 for b in boxes) / len(boxes)
     col = ["left", "centre", "right"][min(int(cx / w * 3), 2)]
@@ -111,22 +93,17 @@ def region_of(boxes, w, h):
     return f"{row}-{col} of the frame"
 
 
-# NOTE: the hazard classifier currently only outputs earthquake / fire /
-# flood / normal. "collapsed_building" and "traffic_accident" are kept
-# here as forward-looking entries for if the classifier is later
-# retrained with more classes - they are not reachable with the current
-# 4-class model.
 PLAYBOOK = {
     "flood": ("boats + rescue swimmers", ["Evacuate to high ground", "Cut power to flooded zones",
-                                          "Use boats/helicopters for stranded people"]),
+                                         "Use boats/helicopters for stranded people"]),
     "fire": ("fire engines + medical", ["Create firebreaks / evacuate downwind", "Establish water supply",
-                                        "Treat smoke inhalation casualties"]),
+                                       "Treat smoke inhalation casualties"]),
     "earthquake": ("heavy machinery + search & rescue", ["Shore up unstable structures",
-                                                         "Use search dogs / thermal cameras",
-                                                         "Shut off gas and power"]),
+                                                        "Use search dogs / thermal cameras",
+                                                        "Shut off gas and power"]),
     "collapsed_building": ("heavy machinery + search & rescue", ["Shore up unstable structures",
-                                                                 "Use search dogs / thermal cameras",
-                                                                 "Shut off gas and power"]),
+                                                                "Use search dogs / thermal cameras",
+                                                                "Shut off gas and power"]),
     "traffic_accident": ("ambulance + police", ["Secure the scene", "Triage casualties", "Divert traffic"]),
     "normal": (None, ["No hazard detected - keep monitoring"]),
 }
@@ -171,3 +148,4 @@ if __name__ == "__main__":
         scan(sys.argv[2])
     else:
         print(__doc__)
+
